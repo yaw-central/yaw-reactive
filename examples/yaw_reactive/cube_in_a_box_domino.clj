@@ -1,6 +1,6 @@
 
 (ns yaw-reactive.cube-in-a-box-domino
-  "A simple 3D example using a reagent-like approach."
+  "A simple 3D example using a reframe-like approach."
   (:require 
    [clojure.set :as set]
    [yaw.world :as world]
