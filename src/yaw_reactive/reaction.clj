@@ -1,7 +1,7 @@
-(ns yaw.reaction
+(ns yaw-reactive.reaction
   (:require [clojure.set :as set]
-            [yaw.ratom :as ratom]
-            [yaw.render :as render :refer [render!]]
+            [yaw-reactive.ratom :as ratom]
+            [yaw-reactive.render :as render :refer [render!]]
             [yaw.keyboard :as kbd]))
 
 ;;{

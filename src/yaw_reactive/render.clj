@@ -1,7 +1,7 @@
-(ns yaw.render
+(ns yaw-reactive.render
   (:require [clojure.set :as set]
-            [yaw.ratom :as ratom :refer [reactive-atom?]]
-            [yaw.scene :as ysc]))
+            [yaw-reactive.ratom :as ratom :refer [reactive-atom?]]
+            [yaw-reactive.scene :as ysc]))
 
 ;;{
 ;; ## Component render

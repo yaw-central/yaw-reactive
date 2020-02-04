@@ -1,4 +1,4 @@
-(ns yaw.ratom
+(ns yaw-reactive.ratom
   (:import (clojure.lang Atom
                          IRef
                          IAtom

@@ -1,8 +1,8 @@
-(ns yaw.scene
+(ns yaw-reactive.scene
   (:require [yaw.util :as u]
             [yaw.world :as w :refer [empty-item-map]]
             [yaw.mesh :as mesh]
-            [yaw.spec]
+            [yaw-reactive.spec]
             [clojure.spec.alpha :as s]
             [clojure.data]))
 

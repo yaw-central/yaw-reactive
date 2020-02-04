@@ -1,4 +1,4 @@
-(ns yaw.spec
+(ns yaw-reactive.spec
   (:require [clojure.spec.alpha :as s]
             [yaw.util :as u]))
                                         ; NUMBERS ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
