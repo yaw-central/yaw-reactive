@@ -208,5 +208,3 @@
       (ysc/display-scene! controller rendering)
       ;;(println "=== END RENDER ===")
       [rendered seen])))
-
-

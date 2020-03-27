@@ -38,7 +38,8 @@
   ([*xs*]
    (let [xs (s/conform :yaw.spec.scene/scene *xs*)]
      (if (s/invalid? xs)
-       (throw (ex-info "Invalid scene" (s/explain-data :yaw.spec.scene/scene *xs*)))
+       (throw (ex-info (str "Invalid scene: " (s/explain-str :yaw.spec.scene/scene *xs*)) 
+                       (s/explain-data :yaw.spec.scene/scene *xs*)))
        (reduce item-map empty-item-map (:content xs))))))
 
 (defn get-new
