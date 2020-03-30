@@ -17,7 +17,7 @@
   {:pos [0 0 -5]
    :delta [0.02 -0.04 0.03]})
 
-(react/register-state  ::cube-state init-cube-state)
+(react/register-state ::cube-state init-cube-state)
 
 ;;; =====================
 ;;; Subscription(s)
@@ -32,11 +32,6 @@
 ;;; ====================
 ;;; Event handlers
 ;;; ====================
-
-(react/register-event
- :react/initialize
- (fn []
-   (react/init-state ::cube-state init-cube-state)))
 
 (react/register-event
  :react/frame-update

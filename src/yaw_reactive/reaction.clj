@@ -1,5 +1,6 @@
 (ns yaw-reactive.reaction
   (:require [clojure.set :as set]
+            [yaw-reactive.event-loop :as ev]
             [yaw-reactive.ratom :as ratom]
             [yaw-reactive.render :as render :refer [render!]]
             [yaw.keyboard :as kbd]))
@@ -83,7 +84,11 @@
 (defonce app-db (atom {}))
 (defonce subscriptions (atom {}))
 (defonce event-handlers (atom {}))
-(def event-queue (agent []))
+
+(declare handle-event)
+
+ ;; TODO : exploit the specified max-size
+(defonce event-queue (ev/mk-event-loop 4096 handle-event))
 
 (defn register-state
   "Register a state `id` in ap-db with the value `val`"
@@ -107,12 +112,26 @@
     (throw (ex-info (str "No such state: " state-id) {:state-id state-id
                                                       :sub-id sub-id}))))
     
+(defn check-state-ids [state-ids]
+  (loop [ids state-ids]
+    (if (seq ids)
+      (if (contains? @app-db (first ids))
+        (recur (rest ids))
+        (throw (ex-info (str "No such state id: " (first ids)) {:state-id (first ids)})))
+      nil)))
 
 (defn register-event
-  "Register an event `id` in event-handlers with its handler `f`"
-  [id f]
-  (swap! event-handlers (fn [old]
-                          (assoc old id f))))
+  "Register an event `id` in event-handlers with its handler `f`.
+The states to read and possibly effect in the event handling are
+ given explicitly (either a single id or a vector of ids)."
+  [id state-ids handler-fn]
+  (let [state-ids (if (vector? state-ids)
+                    state-ids
+                    [state-ids])]
+    (check-state-ids state-ids)
+    (swap! event-handlers (fn [old]
+                            (assoc old id {:state-ids state-ids
+                                           :handler-fn handler-fn})))))
 
 ;; init-state isn't really use, we should use use update-state instead
 (defn init-state [id val]
@@ -139,14 +158,26 @@
     ratom
     (throw (ex-info (str "No such subscription: " id) {:id id}))))
 
+;; event handling
+
+(defn prepare-env [state-ids]
+  (let [app-db @app-db]
+    (reduce (fn [env state-id]
+              (if-let [state (get app-db state-id)]
+                (assoc env state-id @state)
+                (throw (ex-info (str "No such state id: " state-id) {:state-id state-id
+                                                                     :env env}))))
+            {} state-ids)))
+
 (defn handle-event
   "Function to treat events of the agent"
   [queue]
   (if (pos-int? (count queue))
-    (let [[id args] (first queue)
-          fun (get @event-handlers id)]
-      (if-not (nil? fun)
-        (apply fun args))
+    (let [[event-id args] (first queue)]
+      (if-let [handler (get @event-handlers event-id)]
+        (let [env (prepare-env (:state-ids handler))
+              effects (apply (:handler-fn handler) env args)] 
+
       (rest queue))
     queue))
 
@@ -155,9 +186,7 @@
 (defn dispatch
   "Send an event to the agent in order to be treated asynchronously"
   [[id & args]]
-  (when (keyword? id)
-    (send event-queue conj [id args])
-    (send event-queue handle-event)))
+  (ev/push-event! event-queue id args))
 
 (defn dispatch-sync
   "Treatement the event synchronously instead of putting it in the file"
