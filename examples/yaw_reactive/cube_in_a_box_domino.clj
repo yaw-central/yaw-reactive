@@ -26,7 +26,7 @@
 (react/register-subscription 
  +myctrl+ ::cube-state ::cube-changed
  (fn [cube-state]
-   ;; (println "[sub] cube-state=" cube-state)
+   ;;(println "[sub] cube-state=" cube-state)
    (:pos cube-state)))
 
 ;;; ====================
@@ -35,19 +35,16 @@
 
 (react/register-event
  :react/frame-update
- (fn [_]
-   ;; (println "[event] frame-update => ::move-cube")
-   (react/dispatch [::move-cube])))
+ (fn [_ _]  ;; unused args env and delta-time
+   ;;(println "[event] frame-update => ::move-cube")
+   {:events [[::move-cube]]}))
 
 (declare update-cube-state)
 
 (react/register-event
- ::move-cube
- (fn []
-   ;; (println "[event] ::move-cube -> change-state")
-   (react/update-state ::cube-state 
-                       (fn [cube-state]
-                         (update-cube-state cube-state)))))
+ ::move-cube ::cube-state
+ (fn [env]
+   (update env ::cube-state update-cube-state)))
 
 (defn inter? [s1 s2]
   (if (not-empty (set/intersection s1 s2))

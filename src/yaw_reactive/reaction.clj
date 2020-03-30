@@ -1,6 +1,6 @@
 (ns yaw-reactive.reaction
   (:require [clojure.set :as set]
-            [yaw-reactive.event-loop :as ev]
+            [yaw-reactive.event-queue :as ev]
             [yaw-reactive.ratom :as ratom]
             [yaw-reactive.render :as render :refer [render!]]
             [yaw.keyboard :as kbd]))
@@ -88,13 +88,8 @@
 (declare handle-event)
 
  ;; TODO : exploit the specified max-size
-(defonce event-queue (ev/mk-event-loop 4096 handle-event))
+(defonce event-queue (ev/mk-event-queue 4096 handle-event))
 
-(defn register-state
-  "Register a state `id` in ap-db with the value `val`"
-  [id val]
-  (swap! app-db (fn [old]
-                  (assoc old id (atom val)))))
 
 (defn register-subscription
   "Register a subcription `sub-id` in subscriptions with a function
@@ -124,29 +119,45 @@
   "Register an event `id` in event-handlers with its handler `f`.
 The states to read and possibly effect in the event handling are
  given explicitly (either a single id or a vector of ids)."
-  [id state-ids handler-fn]
-  (let [state-ids (if (vector? state-ids)
-                    state-ids
-                    [state-ids])]
-    (check-state-ids state-ids)
-    (swap! event-handlers (fn [old]
-                            (assoc old id {:state-ids state-ids
-                                           :handler-fn handler-fn})))))
+  ([id state-ids handler-fn]
+   (let [state-ids (if (vector? state-ids)
+                     state-ids
+                     [state-ids])]
+     (check-state-ids state-ids)
+     (swap! event-handlers (fn [old]
+                             (assoc old id {:state-ids state-ids
+                                            :handler-fn handler-fn})))))
+  ([id handler-fn]
+   (swap! event-handlers (fn [old]
+                           (assoc old id {:state-ids []
+                                          :handler-fn handler-fn})))))
 
-;; init-state isn't really use, we should use use update-state instead
-(defn init-state [id val]
-  (swap! (id @app-db) (fn [_] val)))
+;; =============================
+;; State management
+;; =============================
+
+(defn register-state
+  "Register a state `id` in ap-db with the initial value `val`"
+  [id val]
+  (swap! app-db (fn [old]
+                  (assoc old id (atom val)))))
 
 (defn update-state
   "Change the value of the  state `id` by using a function `f`
   that takes the former value and calculate a new one"
-  [id f]
-  (swap! (id @app-db) f))
+  [state-id f]
+  (if-let [state (get @app-db state-id)]
+    (do #_(println "[update-state] state before = " @state)
+        (swap! state f)
+        #_(println "    ==> state after = " @state))
+    (throw (ex-info (str "No such state id: " state-id) {:state-id state-id}))))
 
 (defn read-state
   "Read app-db or read a state `id` in app-db"
-  ([] @app-db)
-  ([id] @(get @app-db id)))
+  [state-id]
+  (if-let [state (get @app-db state-id)]
+    @state
+    (throw (ex-info (str "No such state id: " state-id) {:state-id state-id}))))
 
 ;;v is a vector, maybe we can find a value to pass args
 ;;or we need to remove the vector and just pass the id
@@ -169,32 +180,53 @@ The states to read and possibly effect in the event handling are
                                                                      :env env}))))
             {} state-ids)))
 
+(defn handle-event-state-effects!
+  [effects]
+  ;;(println "[handle-effects] effects = " effects)
+  (doseq [[state-id new-state] effects]
+    (update-state state-id (fn [_] new-state))))
+
 (defn handle-event
   "Function to treat events of the agent"
-  [queue]
-  (if (pos-int? (count queue))
-    (let [[event-id args] (first queue)]
+  [events]
+  (if (seq events)
+    (let [[event-id & args] (first events)]
       (if-let [handler (get @event-handlers event-id)]
         (let [env (prepare-env (:state-ids handler))
-              effects (apply (:handler-fn handler) env args)] 
-
-      (rest queue))
-    queue))
+              ;; _ (do (println "[handle-event] event-id = " event-id)
+              ;;       (println "      ==> env = " env)
+              ;;       (println "      ==> args = " args))
+              effects (apply (:handler-fn handler) env args)]
+          ;; 1) handle the effects (state changes)
+          (handle-event-state-effects! (dissoc effects :events))
+          ;; 2) process the new events (if any)
+          (if-let [new-events (get effects :events)]
+            (let [events' (apply conj (rest events) new-events)]
+              
+              events')
+            (rest events)))
+        ;; no handler found
+        ;; (throw (ex-info (str "No handler found for event id:" event-id) {:event-id event-id}))))
+        ;; it is not an error, we silently drop the event
+        (rest events)))
+    ;; no event (signal ?)
+    events))
 
 ;; TODO (later): don't use an agent but rather an atom with an
 ;; immutable queue (with limited size)...
 (defn dispatch
   "Send an event to the agent in order to be treated asynchronously"
   [[id & args]]
+  ;;(println "[dispatch] [" id args "]")
   (ev/push-event! event-queue id args))
 
 (defn dispatch-sync
-  "Treatement the event synchronously instead of putting it in the file"
+  "Treatement the event synchronously instead of putting it in the async queue"
   [[id & args]]
-  (if (keyword? id)
-    (let [fun (get @event-handlers id)]
-      (if-not (nil? fun)
-        (apply fun args)))))
+  ;; (println "[dispatch-sync] [" id args "]")
+  (let [new-events (handle-event [(apply conj [id] args)])]
+    (doseq [new-event new-events]
+      (dispatch-sync new-event))))
 
 (defn activate!
   "Function to start and render a scene"
