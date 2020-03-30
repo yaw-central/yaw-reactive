@@ -7,26 +7,27 @@
    [yaw-reactive.reaction :as react]
    [yaw-reactive.render :as render]))
 
-(def +myctrl+ (world/start-universe!))
+(defonce +myctrl+ (world/start-universe!))
 
 ;;; =====================
 ;;; The state part
 ;;; =====================
 
-(react/register-state  ::cube-state nil)
-
 (def init-cube-state
   {:pos [0 0 -5]
    :delta [0.02 -0.04 0.03]})
+
+(react/register-state  ::cube-state init-cube-state)
 
 ;;; =====================
 ;;; Subscription(s)
 ;;; =====================
 
 (react/register-subscription 
- ::cube-changed
- (fn [db]
-   (::cube-state  db)))
+ +myctrl+ ::cube-state ::cube-changed
+ (fn [cube-state]
+   ;; (println "[sub] cube-state=" cube-state)
+   (:pos cube-state)))
 
 ;;; ====================
 ;;; Event handlers
@@ -120,9 +121,6 @@
     {:pos (mapv + pos delta')
      :delta delta'}))
 
-
-
-
 ;;; =====================
 ;;; The view part
 ;;; =====================
@@ -140,14 +138,14 @@
 
 (defn the-cube
   "Create a cube with its position linked to the `pos` reactive atom."
-  [cube-state]
+  [cube-pos]
   [:item :test/box {:mesh :mesh/box
-                    :pos (:pos @cube-state)
+                    :pos @cube-pos
                     :rot [0 0 0]
                     :mat :red
                     :scale 0.3}])
 
-(defn scene []
+(defn scene [ctrl]
   [:scene
    [:ambient {:color :white :i 0.4}]
    [:sun {:color :red :i 1 :dir [-1 0 0]}]
@@ -160,12 +158,13 @@
    [marker [min-x max-y min-z] "6"]
    [marker [max-x max-y min-z] "7"]
    [marker [max-x min-y min-z] "8"]
-   (let [cube-state (react/subscribe +myctrl+ [::cube-changed])]
+   (let [cube-state (react/subscribe ::cube-changed)]
     [the-cube cube-state])])
 
 ;;; =====================
 ;;; The main part
 ;;; =====================
 
-(react/activate! +myctrl+ [scene])
+
+(react/activate! +myctrl+ [scene +myctrl+])
  ;; (react/dispatch :react/initialize)

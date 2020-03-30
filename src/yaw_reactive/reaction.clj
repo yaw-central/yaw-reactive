@@ -13,8 +13,8 @@
 
 (defn reaction-handler [ratom controller dep-comps old-value new-value]
   ;;(println "Reaction triggerred")
-  ;;(println "old value:" old-value)
-  ;;(println "new value:" new-value)
+  ;;(println "  ==> old value:" old-value)
+  ;;(println "  ==> new value:" new-value)
   (if (= new-value old-value)
     (do ;;(println "No need for re-rendering (same state after a swap)")
       )
@@ -92,11 +92,21 @@
                   (assoc old id (atom val)))))
 
 (defn register-subscription
-  "Register a subcription `id` in subscriptions with a function
-  `f` returning a state of ap-db"
-  [id f]
-  (swap! subscriptions (fn [old]
-                         (assoc old id f))))
+  "Register a subcription `sub-id` in subscriptions with a function
+  `f` returning a value when the state identified by `state-id` is changed."
+  [ctrl state-id sub-id f]
+  (if-let [state (get @app-db state-id)]
+    (let [ratom (reactive-atom ctrl (f @state))]
+      (add-watch state sub-id (fn [_ _ old new]
+                                ;;(println "[sub] old = " old)
+                                ;;(println "  ==> new = " new)
+                                (swap! ratom (fn [_] (f new)))))
+      (swap! subscriptions (fn [old]
+                             (assoc old sub-id ratom))))
+    ;; no such state
+    (throw (ex-info (str "No such state: " state-id) {:state-id state-id
+                                                      :sub-id sub-id}))))
+    
 
 (defn register-event
   "Register an event `id` in event-handlers with its handler `f`"
@@ -124,17 +134,10 @@
 (defn subscribe
   "Subscribe to a state in app-db by giving the id of the subscription
   and return a ratom linked with the state"
-  [controller v]
-  (let [id (first v)
-        fun (get @subscriptions id)
-        state (fun @app-db)
-        ratom (reactive-atom controller @state)]
-    (do
-      ;; Use Ratom address as unique id for the watch
-      ;; maybe find a cleaner way to do so
-      (add-watch state (keyword (str ratom)) (fn [_ _ _ new]
-                                               (swap! ratom (fn [_] new))))
-      ratom)))
+  [id]
+  (if-let [ratom (get @subscriptions id)]
+    ratom
+    (throw (ex-info (str "No such subscription: " id) {:id id}))))
 
 (defn handle-event
   "Function to treat events of the agent"
@@ -176,5 +179,5 @@
                                     (dispatch-sync [:react/frame-update delta-time])))
     (add-watch keyboard :keyboard-yaw (fn [_ _ _ keyboard-state]
                                         ;;Maybe just dispatch instead of dispatch-sync ?
-                                        (dispatch-sync [:react/key-update keyboard-state])))))
+                                        (dispatch [:react/key-update keyboard-state])))))
 
