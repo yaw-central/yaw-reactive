@@ -24,11 +24,10 @@
 ;;; =====================
 
 (react/register-subscription 
- +myctrl+ ::cube-changed
- (fn [db]
-   (println "[sub] db=" db)
-   (println "   ==> pos = " (:pos @(::cube-state db)))
-   (:pos @(::cube-state db))))
+ +myctrl+ ::cube-state ::cube-changed
+ (fn [cube-state]
+   ;; (println "[sub] cube-state=" cube-state)
+   (:pos cube-state)))
 
 ;;; ====================
 ;;; Event handlers
@@ -141,8 +140,7 @@
   "Create a cube with its position linked to the `pos` reactive atom."
   [cube-pos]
   [:item :test/box {:mesh :mesh/box
-                    :pos (do (println "[cube] changed state=" @cube-pos)
-                             @cube-pos)
+                    :pos @cube-pos
                     :rot [0 0 0]
                     :mat :red
                     :scale 0.3}])

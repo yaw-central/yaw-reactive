@@ -92,15 +92,21 @@
                   (assoc old id (atom val)))))
 
 (defn register-subscription
-  "Register a subcription `id` in subscriptions with a function
-  `f` returning a value when the app-db is changed"
-  [ctrl id f]
-  (let [ratom (reactive-atom ctrl (f @app-db))]
-    (add-watch app-db id (fn [& args]
-                          (println "[sub] nb args = " (count args))
-                          (swap! ratom (fn [_] (f @app-db)))))
-    (swap! subscriptions (fn [old]
-                           (assoc old id ratom)))))
+  "Register a subcription `sub-id` in subscriptions with a function
+  `f` returning a value when the state identified by `state-id` is changed."
+  [ctrl state-id sub-id f]
+  (if-let [state (get @app-db state-id)]
+    (let [ratom (reactive-atom ctrl (f @state))]
+      (add-watch state sub-id (fn [_ _ old new]
+                                ;;(println "[sub] old = " old)
+                                ;;(println "  ==> new = " new)
+                                (swap! ratom (fn [_] (f new)))))
+      (swap! subscriptions (fn [old]
+                             (assoc old sub-id ratom))))
+    ;; no such state
+    (throw (ex-info (str "No such state: " state-id) {:state-id state-id
+                                                      :sub-id sub-id}))))
+    
 
 (defn register-event
   "Register an event `id` in event-handlers with its handler `f`"
