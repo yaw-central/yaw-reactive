@@ -137,7 +137,7 @@
                     :mat :red
                     :scale 0.3}])
 
-(defn scene [ctrl]
+(defn scene []
   [:scene
    [:ambient {:color :white :i 0.4}]
    [:sun {:color :red :i 1 :dir [-1 0 0]}]
@@ -150,13 +150,13 @@
    [marker [min-x max-y min-z] "6"]
    [marker [max-x max-y min-z] "7"]
    [marker [max-x min-y min-z] "8"]
-   (let [cube-state (react/subscribe ::cube-changed)]
-    [the-cube cube-state])])
+   (let [cube-pos (react/subscribe ::cube-changed)]
+    [the-cube cube-pos])])
 
 ;;; =====================
 ;;; The main part
 ;;; =====================
 
 
-(react/activate! +myctrl+ [scene +myctrl+])
+(react/activate! +myctrl+ [scene])
  ;; (react/dispatch :react/initialize)
