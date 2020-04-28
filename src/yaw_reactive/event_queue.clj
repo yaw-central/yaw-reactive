@@ -15,7 +15,7 @@
   "Push the provided `event` in the `queue`. This function can block
   if the maximum queue size is reached (TODO)."
   [queue event-id event-args]
-  (send queue (fn [queue]  (update queue :events (fn [evs] (conj evs [event-id event-args])))))
+  (send queue (fn [queue]  (update queue :events (fn [evs] (conj evs (into [event-id] event-args))))))
   (send queue (fn [queue]
                 (let [events (:events queue)
                       events' ((:event-handler queue) events)]
