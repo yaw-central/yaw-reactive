@@ -1,5 +1,6 @@
 (ns yaw-reactive.scene
   (:require [yaw.util :as u]
+            [yaw-reactive.util :as ru]
             [yaw.world :as w :refer [empty-item-map]]
             [yaw.mesh :as mesh]
             [yaw-reactive.spec]
@@ -38,9 +39,8 @@
   ([*xs*]
    (let [xs (s/conform :yaw.spec.scene/scene *xs*)]
      (if (s/invalid? xs)
-       (throw (ex-info (str "Invalid scene: " (s/explain-str :yaw.spec.scene/scene *xs*)) 
-                       (s/explain-data :yaw.spec.scene/scene *xs*)))
-       (reduce item-map empty-item-map (:content xs))))))
+       (ru/mk-ko empty-item-map)
+       (ru/mk-ok (reduce item-map empty-item-map (:content xs)))))))
 
 (defn get-new
   [old new]
@@ -426,7 +426,8 @@
 
 (defn display-scene!
   [univ scene]
-  (let [d (diff (:data @univ) (item-map scene))]
+  (let [s (ru/unwrap-or (item-map scene) (:data @univ))
+        d (diff (:data @univ) s)]
     ;;(println "DIFF:")
     ;;(println d)
     (display-diff! univ d)))
