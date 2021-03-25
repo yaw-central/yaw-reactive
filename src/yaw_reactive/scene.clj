@@ -5,7 +5,11 @@
             [yaw.mesh :as mesh]
             [yaw-reactive.spec]
             [clojure.spec.alpha :as s]
+            [expound.alpha :as exp]
             [clojure.data]))
+
+;; See code below
+(declare validate-scene)
 
 ;;{
 ;; The function take a scene and check if the scene is correct.
@@ -37,10 +41,20 @@
                                              [:lights :spots (:id-kw v)]
                                              (assoc (:params v) :id-n (:id-n v)))))))))
   ([*xs*]
-   (let [xs (s/conform :yaw.spec.scene/scene *xs*)]
-     (if (s/invalid? xs)
-       (ru/mk-ko empty-item-map)
-       (ru/mk-ok (reduce item-map empty-item-map (:content xs)))))))
+   (validate-scene *xs*)))
+
+(defn validate-scene
+  "Validates a scene by testing its conformation, returning an :ok/:ko value"
+  [*xs*]
+  (let [xs (s/conform :yaw.spec.scene/scene *xs*)]
+    (if (s/invalid? xs)
+      (ru/mk-ko empty-item-map)
+      (ru/mk-ok (reduce item-map empty-item-map (:content xs))))))
+
+(defn verify-scene
+  "Displays info about potential errors in the scene"
+  [*xs*]
+  (exp/expound :yaw.spec.scene/scene *xs*))
 
 (defn get-new
   [old new]

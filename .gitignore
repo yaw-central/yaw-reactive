@@ -16,10 +16,10 @@ pom.xml.asc
 *classpath
 
 # IDEA
-.idea/libraries/
-.idea/workspace.xml
+.idea/
 
 # Emacs artefacts
 *~
 \#*\#
 .\#*
+
