@@ -23,7 +23,7 @@
       </profile>
     </annotationProcessing>
     <bytecodeTargetLevel>
-      <module name="yaw-reactive" target="1.11" />
+      <module name="yaw-reactive" target="1.5" />
     </bytecodeTargetLevel>
   </component>
 </project>
