@@ -8,6 +8,12 @@
             [expound.alpha :as exp]
             [clojure.data]))
 
+;; Define the atom for the current scene to the nil
+(def current-scene (atom nil))
+
+;; Define the scene map to store all scenes empty
+(def scenes (atom {}))
+
 ;; See code below
 (declare validate-scene)
 
@@ -55,6 +61,18 @@
   "Displays info about potential errors in the scene"
   [*xs*]
   (exp/expound :yaw.spec.scene/scene *xs*))
+
+;; =============================
+;; Scenes management
+;; =============================
+
+(defn register-scene!
+  "Add a scene to the scene map with its id after verifying it"
+  [id scene]
+  (let [verif-res (validate-scene (scene))]
+    (if (= (verif-res :tag) :ok)
+        (swap! scenes assoc id scene)
+        (println "The scene you want to insert is invalid"))))
 
 (defn get-new
   [old new]
