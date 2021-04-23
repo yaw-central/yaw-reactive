@@ -16,7 +16,7 @@ pom.xml.asc
 *classpath
 
 # IDEA
-.idea/
+./.idea
 
 # Emacs artefacts
 *~
