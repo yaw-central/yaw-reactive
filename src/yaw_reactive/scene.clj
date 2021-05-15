@@ -96,6 +96,65 @@
 (defn- diff-items
   "Reduces the given old and new item maps to a sequence of effect representations it conjoins to the accumulator"
   [acc old new]
+
+  ;(loop [res acc
+  ;       o old
+  ;       n new]
+  ;    (if (empty? n)
+  ;      res
+  ;      (let [[kn vn] (first n)]
+  ;        (if (not (contains? o kn))
+  ;          (recur (conj res [:item/add kn vn]) o (dissoc n kn))
+  ;          (recur (reduce-kv (fn [d p v]
+  ;                              (case p
+  ;                                :rot (action-value d :item/rotate kn
+  ;                                                   (-> old kn :rot) v
+  ;                                                   vec-diff)
+  ;                                :pos (action-value d :item/translate kn
+  ;                                                   (-> old kn :pos) v
+  ;                                                   vec-diff)
+  ;                                :mat (action-value d :item/remat kn
+  ;                                                   (-> old kn :mat) v
+  ;                                                   get-new)
+  ;                                :scale (action-value d :item/rescale kn
+  ;                                                     (-> old kn :scale) v
+  ;                                                     get-new)
+  ;                                :mesh (action-value d :item/remesh kn
+  ;                                                    (-> old kn :mesh) v
+  ;                                                    get-new)))
+  ;                            res vn) o (dissoc n kn))))))
+
+  ;(loop [res acc
+  ;       o old
+  ;       n new]
+  ;  (if (and (empty? o) (empty? n))
+  ;    res
+  ;    (if (not (empty? n))
+  ;      (let [[kn vn] (first n)]
+  ;        (if (not (contains? o kn))
+  ;          (recur (conj res [:item/add kn vn]) o (dissoc n kn))
+  ;          (recur (reduce-kv (fn [d p v]
+  ;                              (case p
+  ;                                :rot (action-value d :item/rotate kn
+  ;                                                   (-> old kn :rot) v
+  ;                                                   vec-diff)
+  ;                                :pos (action-value d :item/translate kn
+  ;                                                   (-> old kn :pos) v
+  ;                                                   vec-diff)
+  ;                                :mat (action-value d :item/remat kn
+  ;                                                   (-> old kn :mat) v
+  ;                                                   get-new)
+  ;                                :scale (action-value d :item/rescale kn
+  ;                                                     (-> old kn :scale) v
+  ;                                                     get-new)
+  ;                                :mesh (action-value d :item/remesh kn
+  ;                                                    (-> old kn :mesh) v
+  ;                                                    get-new)))
+  ;                            res vn) (dissoc o kn) (dissoc n kn))
+  ;          ))
+  ;      (let [[ko vo] (first o)]
+  ;        (recur (conj res [:item/remove ko]) (dissoc o ko) n)))))
+
   (reduce-kv (fn [d id v]
                (if (not (contains? old id))
                  (conj d [:item/add id v])
@@ -117,7 +176,8 @@
                                                     (-> old id :mesh) v
                                                     get-new)))
                             d v)))
-             acc new))
+             acc new)
+  )
 
 ;;{
 ;; The function will mark every differences between the groups of the old and the new scene
@@ -366,6 +426,8 @@
                            (w/rotate! group :x x :y y :z z)
                            (apply-collision univ group hitboxes))
            :group/rescale (throw (ex-info "Unimplemented action"))
+           :group/remove (throw (ex-info "Unimplemented action"))
+
            :item/add (let [[id params] details
                            params (merge {:mat [:color [1 1 1]] :scale 1 :pos [0 0 0] :rot [0 0 0]}
                                          params)
@@ -400,6 +462,7 @@
                           (w/rotate! i :x x :y y :z z))
            :item/remesh (throw (ex-info "Unimplemented action"))
            :item/rescale (throw (ex-info "Unimplemented action"))
+           :item/remove (throw (ex-info "Unimplemented action"))
 
            :cam/add (let [[id params] details
                           params (merge {:fov 60} params)
@@ -435,17 +498,22 @@
                           i (get-in @univ [:items id])]
                       (swap! univ assoc-in [:data :cameras id :live] value)
                       (when value (w/set-camera! (:world @univ) i)))
+           :cam/remove (throw (ex-info "Unimplemented action"))
 
            :light/add (let [[id params] details
                             n (count (get-in @univ [:data :lights :points]))
                             l (w/create-point-light! params)]
                         (swap! univ assoc-in [:data :lights :points id] params)
                         (w/set-point-light! (:world @univ) n l))
+           :light/remove (throw (ex-info "Unimplemented action"))
+
            :spot/add (let [[id params] details
                            n (count (get-in @univ [:data :lights :spots]))
                            l (w/create-spot-light! params)]
                        (swap! univ assoc-in [:data :lights :spots id] params)
                        (w/set-spot-light! (:world @univ) n l))
+           :spot/remove (throw (ex-info "Unimplemented action"))
+
            :ambient/set (let [[params] details
                               a (w/create-ambient-light! params)]
                           (swap! univ assoc-in [:data :lights :ambient] params)
