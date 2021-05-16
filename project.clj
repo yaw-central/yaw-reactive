@@ -10,6 +10,6 @@
                  [expound "0.8.9"]]
   :pom-addition [:properties
                   ["maven.compiler.source" "14"]
-                  ["maven.compiler.target" "14"]])
+                  ["maven.compiler.target" "14"]]
 )
 

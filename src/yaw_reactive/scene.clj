@@ -93,91 +93,60 @@
     (conj xs [action id (dif old new)])
     xs))
 
+
 (defn- diff-items
   "Reduces the given old and new item maps to a sequence of effect representations it conjoins to the accumulator"
   [acc old new]
-
-  ;(loop [res acc
-  ;       o old
-  ;       n new]
-  ;    (if (empty? n)
-  ;      res
-  ;      (let [[kn vn] (first n)]
-  ;        (if (not (contains? o kn))
-  ;          (recur (conj res [:item/add kn vn]) o (dissoc n kn))
-  ;          (recur (reduce-kv (fn [d p v]
-  ;                              (case p
-  ;                                :rot (action-value d :item/rotate kn
-  ;                                                   (-> old kn :rot) v
-  ;                                                   vec-diff)
-  ;                                :pos (action-value d :item/translate kn
-  ;                                                   (-> old kn :pos) v
-  ;                                                   vec-diff)
-  ;                                :mat (action-value d :item/remat kn
-  ;                                                   (-> old kn :mat) v
-  ;                                                   get-new)
-  ;                                :scale (action-value d :item/rescale kn
-  ;                                                     (-> old kn :scale) v
-  ;                                                     get-new)
-  ;                                :mesh (action-value d :item/remesh kn
-  ;                                                    (-> old kn :mesh) v
-  ;                                                    get-new)))
-  ;                            res vn) o (dissoc n kn))))))
-
-  ;(loop [res acc
-  ;       o old
-  ;       n new]
-  ;  (if (and (empty? o) (empty? n))
-  ;    res
-  ;    (if (not (empty? n))
-  ;      (let [[kn vn] (first n)]
-  ;        (if (not (contains? o kn))
-  ;          (recur (conj res [:item/add kn vn]) o (dissoc n kn))
-  ;          (recur (reduce-kv (fn [d p v]
-  ;                              (case p
-  ;                                :rot (action-value d :item/rotate kn
-  ;                                                   (-> old kn :rot) v
-  ;                                                   vec-diff)
-  ;                                :pos (action-value d :item/translate kn
-  ;                                                   (-> old kn :pos) v
-  ;                                                   vec-diff)
-  ;                                :mat (action-value d :item/remat kn
-  ;                                                   (-> old kn :mat) v
-  ;                                                   get-new)
-  ;                                :scale (action-value d :item/rescale kn
-  ;                                                     (-> old kn :scale) v
-  ;                                                     get-new)
-  ;                                :mesh (action-value d :item/remesh kn
-  ;                                                    (-> old kn :mesh) v
-  ;                                                    get-new)))
-  ;                            res vn) (dissoc o kn) (dissoc n kn))
-  ;          ))
-  ;      (let [[ko vo] (first o)]
-  ;        (recur (conj res [:item/remove ko]) (dissoc o ko) n)))))
-
-  (reduce-kv (fn [d id v]
-               (if (not (contains? old id))
-                 (conj d [:item/add id v])
-                 (reduce-kv (fn [d p v]
-                              (case p
-                                :rot (action-value d :item/rotate id
-                                                   (-> old id :rot) v
-                                                   vec-diff)
-                                :pos (action-value d :item/translate id
-                                                   (-> old id :pos) v
-                                                   vec-diff)
-                                :mat (action-value d :item/remat id
-                                                   (-> old id :mat) v
-                                                   get-new)
-                                :scale (action-value d :item/rescale id
-                                                     (-> old id :scale) v
+  (loop [res acc
+         n new]
+    (if (empty? n)
+      res
+      (let [[kn vn] (first n)]
+          (if (not (contains? old kn))
+            (recur (conj res [:item/add kn vn]) (dissoc n kn))
+            (recur (reduce-kv (fn [d p v]
+                                (case p
+                                  :rot (action-value d :item/rotate kn
+                                                     (-> old kn :rot) v
+                                                     vec-diff)
+                                  :pos (action-value d :item/translate kn
+                                                     (-> old kn :pos) v
+                                                     vec-diff)
+                                  :mat (action-value d :item/remat kn
+                                                     (-> old kn :mat) v
                                                      get-new)
-                                :mesh (action-value d :item/remesh id
-                                                    (-> old id :mesh) v
-                                                    get-new)))
-                            d v)))
-             acc new)
-  )
+                                  :scale (action-value d :item/rescale kn
+                                                       (-> old kn :scale) v
+                                                       get-new)
+                                  :mesh (action-value d :item/remesh kn
+                                                      (-> old kn :mesh) v
+                                                      get-new)))
+                              res vn) (dissoc n kn))
+            )))))
+
+(defn- diffr-items
+  "Reduces the given old and new item maps to a sequence of actions to get from old to new including item removing.
+   New must be an exhaustive representation of the new scene items"
+  [acc old new]
+  (loop [res (diff-items acc old new)
+         o old]
+    (if (empty? o)
+      res
+      (let [[ko _] (first o)]
+        (if (not (contains? new ko))
+          (recur (conj res [:item/remove ko]) (dissoc o ko))
+          (recur res (dissoc o ko)))))))
+
+(defn- remove-items
+  "Accumulate all remove actions to remove all items in the item map"
+  [acc items]
+  (loop [res acc
+         its items]
+    (if (empty? its)
+      res
+      (let [[id _] (first its)]
+        (recur (conj res [:item/remove id]) (dissoc id its))))))
+
 
 ;;{
 ;; The function will mark every differences between the groups of the old and the new scene
@@ -186,35 +155,59 @@
 (defn- diff-groups
   "Reduces the given old and new group maps to a sequence of effect representations it conjoins to the accumulator"
   [acc old new]
-  (reduce-kv (fn [d id v]
-               (if (not (contains? old id))
-                 ;;If in the old scene the group didn't exist, we mark that we want to create it in the new scene
-                 (conj d [:group/add id v])
-                 ;;Else we check and mark the differences
-                 (reduce-kv (fn [d keyword v]
-                              (case keyword
-                                :params (reduce-kv (fn [d p v]
-                                                     (case p
-                                                       ;;We check if there is a diffence in the rotation
-                                                       ;;If yes we mark the difference
-                                                       :rot (action-value d :group/rotate id
-                                                                          (-> old id :params :rot) v
-                                                                          vec-diff)
-                                                       ;;Same with the position
-                                                       :pos (action-value d :group/translate id
-                                                                          (-> old id :params :pos) v
-                                                                          vec-diff)
-                                                       ;;Same with the scale
-                                                       :scale (action-value d :group/rescale id
-                                                                            (-> old id :params :scale) v
-                                                                            get-new)))
-                                                   d v)
-                                ;;TODO later if we want move an item of the group independently
-                                :items d
-                                ;;Same with the hitboxes
-                                :hitboxes d))
-                            d v)))
-             acc new))
+  (loop [res acc
+         n new]
+    (if (empty? n)
+      res
+      (let [[kn vn] (first n)]
+        (if (not (contains? old kn))
+          (recur (conj res [:group/add kn vn]) (dissoc n kn))
+          (recur (reduce-kv (fn [d keyword v]
+                       (case keyword
+                         :params (reduce-kv (fn [d p v]
+                                              (case p
+                                                ;;We check if there is a diffence in the rotation
+                                                ;;If yes we mark the difference
+                                                :rot (action-value d :group/rotate kn
+                                                                   (-> old kn :params :rot) v
+                                                                   vec-diff)
+                                                ;;Same with the position
+                                                :pos (action-value d :group/translate kn
+                                                                   (-> old kn :params :pos) v
+                                                                   vec-diff)
+                                                ;;Same with the scale
+                                                :scale (action-value d :group/rescale kn
+                                                                     (-> old kn :params :scale) v
+                                                                     get-new)))
+                                            d v)
+                         ;;TODO move an item of the group independently
+                         :items d
+                         ;;TODO Same with the hitboxes
+                         :hitboxes d))
+                     res vn) (dissoc n kn)))))))
+
+(defn- diffr-groups
+  "Reduce the given old and new groups map to a sequence of action to get from old to new, including group removing"
+  [acc old new]
+  (loop [res (diff-groups acc old new)
+         o old]
+    (if (empty? o)
+      res
+      (let [[ko _] (first o)]
+        (if (not (contains? new ko))
+          (recur (conj res [:group/remove ko]) (dissoc o ko))
+          (recur res (dissoc o ko)))))))
+
+(defn- remove-groups
+  "Return an sequence of action needed to remove all groups in the group map"
+  [acc groups]
+  (loop [res acc
+         grs groups]
+    (if (empty? grs)
+      res
+      (let [[id _] (first grs)]
+        (recur (conj res [:group/remove id]) (dissoc grs id))))))
+
 
 (defn- diff-cameras
   "Reduces the given old and new camera maps to a sequence of effect representations it conjoins to the accumulator"
@@ -237,7 +230,8 @@
                                                     (-> old id :live) v
                                                     get-new)))
                             d v)))
-             acc new))
+             acc new)
+  )
 
 (defn- diff-points
   [acc old new]
@@ -329,7 +323,9 @@
   "Mark every differences between `scene-old` and `scene-new` and return the struture
   describing every actions needed to switch the old scene to the new scene"
   [scene-old scene-new]
-  (diff-groups (diff-items (diff-cameras (diff-lights [:diff]
+
+  (do
+    (diff-groups (diff-items (diff-cameras (diff-lights [:diff]
                                                       (:lights scene-old)
                                                       (:lights scene-new))
                                          (:cameras scene-old)
@@ -337,7 +333,7 @@
                            (:items scene-old)
                            (:items scene-new))
                (:groups scene-old)
-               (:groups scene-new)))
+               (:groups scene-new))))
 
 (defn apply-collision
   "This function take a `group` an its `hitboxes` and looks in the `univ`
@@ -460,9 +456,13 @@
                               i (get-in @univ [:items id])]
                           (swap! univ update-in [:data :items id :rot] #(mapv + % [x y z]))
                           (w/rotate! i :x x :y y :z z))
-           :item/remesh (throw (ex-info "Unimplemented action"))
-           :item/rescale (throw (ex-info "Unimplemented action"))
-           :item/remove (throw (ex-info "Unimplemented action"))
+           :item/remesh (throw (ex-info "Unimplemented action" {:to-remesh details}))
+           :item/rescale (throw (ex-info "Unimplemented action" {:to-rescale details}))
+           :item/remove (let [[id] details
+                              item (get-in @univ [:items id])]
+                          (do
+                            (swap! univ ru/dissoc-in [:items id])
+                            (w/remove-item! (:world @univ) item)))
 
            :cam/add (let [[id params] details
                           params (merge {:fov 60} params)
