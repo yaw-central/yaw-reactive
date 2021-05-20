@@ -122,7 +122,8 @@
                                                       (-> old kn :mesh) v
                                                       get-new)))
                               res vn) (dissoc n kn))
-            )))))
+            ))))
+  )
 
 (defn- diffr-items
   "Reduces the given old and new item maps to a sequence of actions to get from old to new including item removing.
@@ -135,7 +136,8 @@
       (let [[ko _] (first o)]
         (if (not (contains? new ko))
           (recur (conj res [:item/remove ko]) (dissoc o ko))
-          (recur res (dissoc o ko)))))))
+          (recur res (dissoc o ko))))))
+  )
 
 (defn- remove-items
   "Accumulate all remove actions to remove all items in the item map"
@@ -145,7 +147,8 @@
     (if (empty? its)
       res
       (let [[id _] (first its)]
-        (recur (conj res [:item/remove id]) (dissoc id its))))))
+        (recur (conj res [:item/remove id]) (dissoc its id)))))
+  )
 
 
 ;;{
@@ -184,7 +187,8 @@
                          :items d
                          ;;TODO Same with the hitboxes
                          :hitboxes d))
-                     res vn) (dissoc n kn)))))))
+                     res vn) (dissoc n kn))))))
+  )
 
 (defn- diffr-groups
   "Reduce the given old and new groups map to a sequence of action to get from old to new, including group removing"
@@ -196,7 +200,8 @@
       (let [[ko _] (first o)]
         (if (not (contains? new ko))
           (recur (conj res [:group/remove ko]) (dissoc o ko))
-          (recur res (dissoc o ko)))))))
+          (recur res (dissoc o ko))))))
+  )
 
 (defn- remove-groups
   "Return an sequence of action needed to remove all groups in the group map"
@@ -206,7 +211,8 @@
     (if (empty? grs)
       res
       (let [[id _] (first grs)]
-        (recur (conj res [:group/remove id]) (dissoc grs id))))))
+        (recur (conj res [:group/remove id]) (dissoc grs id)))))
+  )
 
 
 (defn- diff-cameras
@@ -233,11 +239,37 @@
              acc new)
   )
 
+(defn- diffr-cameras
+  "Reduces the given old and new camera maps to a sequence of action to get from old to new, including removing"
+  [acc old new]
+  (loop [res (diff-cameras acc old new)
+         o old]
+    (if (empty? o)
+      res
+      (let [[ko _] (first o)]
+        (if (not (contains? new ko))
+          (recur (conj res [:cam/remove ko]) (dissoc o ko))
+          (recur res (dissoc o ko))))))
+  )
+
+(defn- remove-cameras
+  "Give a sequence of remove action to remove all cameras from the given camera map"
+  [acc cameras]
+  (loop [res acc
+         cams cameras]
+    (if (empty? cams)
+      res
+      (let [[id _] (first cams)]
+        (recur (conj res [:cam/remove id]) (dissoc cams id)))))
+  )
+
+
 (defn- diff-points
+  "Reduces the two given point maps into a sequence of action to get from old to new"
   [acc old new]
   (reduce-kv (fn [d id v]
                (if (not (contains? old id))
-                 (conj d [:light/add id v])
+                 (conj d [:point/add id v])
                  (reduce-kv (fn [d p v]
                               (case p
                                 :color (action-value d :light/recolor id
@@ -253,7 +285,33 @@
                             d v)))
              acc new))
 
+(defn- diffr-points
+  "Reduces the two given point maps into a sequence of action to get from old to new, including removing"
+  [acc old new]
+  (loop [res (diff-points acc old new)
+         o old]
+    (if (empty? o)
+      res
+      (let [[ko _] (first o)]
+        (if (not (contains? new ko))
+          (recur (conj res [:point/remove ko]) (dissoc o ko))
+          (recur res (dissoc o ko))))))
+  )
+
+(defn- remove-points
+  "Give a sequence of action to remove all points from the given point map"
+  [acc points]
+  (loop [res acc
+         pts points]
+    (if (empty? pts)
+      res
+      (let [[id _] (first pts)]
+        (recur (conj res [:point/remove id]) (dissoc pts id)))))
+  )
+
+
 (defn- diff-spots
+  "Reduces the two given sports maps into a sequence of action to get from old to new"
   [acc old new]
   (reduce-kv (fn [d id v]
                (if (not (contains? old id))
@@ -276,6 +334,31 @@
                             d v)))
              acc new))
 
+(defn- diffr-spots
+  "Reduces the two given sports maps into a sequence of action to get from old to new, including removing actions"
+  [acc old new]
+  (loop [res (diff-spots acc old new)
+         o old]
+    (if (empty? o)
+      res
+      (let [[ko _] (first o)]
+        (if (not (contains? new ko))
+          (recur (conj res [:spot/remove ko]) (dissoc o ko))
+          (recur res (dissoc o ko))))))
+  )
+
+(defn- remove-spots
+  "Give a sequence of action to remove all spots from the given spot map"
+  [acc spots]
+  (loop [res acc
+         spts spots]
+    (if (empty? spts)
+      res
+      (let [[id _] (first spts)]
+        (recur (conj res [:spot/remove id]) (dissoc spts id)))))
+  )
+
+
 (defn- diff-ambient
   [acc old new]
   (if (= old new)
@@ -290,6 +373,7 @@
                        :i (conj d [:ambient/intensity v])
                        d))
                    acc new)))))
+
 
 (defn- diff-sun
   [acc old new]
@@ -307,6 +391,7 @@
                        d))
                    acc new)))))
 
+
 (defn- diff-lights
   "Reduces the given old and new light maps to a sequence of effect representations it conjoins to the accumulator"
   [acc old new]
@@ -317,23 +402,75 @@
                  :points (diff-points d (:points old) v)
                  :spots (diff-spots d (:spots old) v)
                  d))
-             acc new))
+             acc new)
+  )
+
+(defn- diffr-lights
+  "Reduces the given light maps to a sequence of action to get from old to new, including removing"
+  [acc old new]
+  (reduce-kv (fn [d k v]
+               (case k
+                 :ambient (diff-ambient d (:ambient old) v)
+                 :sun (diff-sun d (:sun old) v)
+                 :points (diffr-points d (:points old) v)
+                 :spots (diffr-spots d (:spots old) v)
+                 d))
+             acc new)
+  )
+
+(defn- remove-lights
+  "Give the action sequence to remove all light from the given lights map"
+  [acc scene]
+  (reduce-kv (fn [res k v]
+               (case k
+                 :ambient res                               ; TODO Set the ambiance to default ambiance
+                 :sun res                                   ; TODO Set the sun to default lightning
+                 :points (remove-points res v)
+                 :spots (remove-spots res v)
+                 res))
+             acc scene)
+  )
+
 
 (defn diff
   "Mark every differences between `scene-old` and `scene-new` and return the struture
   describing every actions needed to switch the old scene to the new scene"
   [scene-old scene-new]
+  (diff-groups (diff-items (diff-cameras (diff-lights [:diff]
+                                                    (:lights scene-old)
+                                                    (:lights scene-new))
+                                       (:cameras scene-old)
+                                       (:cameras scene-new))
+                         (:items scene-old)
+                         (:items scene-new))
+             (:groups scene-old)
+             (:groups scene-new))
+  )
 
-  (do
-    (diff-groups (diff-items (diff-cameras (diff-lights [:diff]
-                                                      (:lights scene-old)
-                                                      (:lights scene-new))
-                                         (:cameras scene-old)
-                                         (:cameras scene-new))
-                           (:items scene-old)
-                           (:items scene-new))
-               (:groups scene-old)
-               (:groups scene-new))))
+(defn diffr
+  "Make every difference between the old and the new scene and return the structure of all action to execute.
+  Including removing action. The scene-new has to be an exaustive representation of the new scene"
+  [scene-old scene-new]
+  (diffr-groups (diffr-items (diffr-cameras (diffr-lights [:diff]
+                                                          (:lights scene-old)
+                                                          (:lights scene-new))
+                                            (:cameras scene-old)
+                                            (:cameras scene-new))
+                             (:items scene-old)
+                             (:items scene-new))
+                (:groups scene-old)
+                (:groups scene-new))
+  )
+
+(defn clear
+  "Return a sequence of action to clear the given scene of all instances"
+  [scene]
+  (remove-groups (remove-items (remove-cameras (remove-lights [:diff]
+                                                              (:lights scene))
+                                               (:cameras scene))
+                               (:items scene))
+                 (:groups scene))
+  )
 
 (defn apply-collision
   "This function take a `group` an its `hitboxes` and looks in the `univ`
@@ -421,8 +558,14 @@
                            (swap! univ update-in [:data :groups id :params :rot] #(mapv + % [x y z]))
                            (w/rotate! group :x x :y y :z z)
                            (apply-collision univ group hitboxes))
-           :group/rescale (throw (ex-info "Unimplemented action"))
-           :group/remove (throw (ex-info "Unimplemented action"))
+           :group/rescale (throw (ex-info "Unimplemented action" {:to-rescale details}))
+           :group/remove (let [[id] details
+                               group (get-in @univ [:groups id])]
+                           (do
+                             (swap! univ ru/dissoc-in [:groups id])
+                             (swap! univ ru/dissoc-in [:data :groups id])
+                             (w/remove-group! (:world @univ) group)))
+           ;; TODO Verify that method removes all items in the group either
 
            :item/add (let [[id params] details
                            params (merge {:mat [:color [1 1 1]] :scale 1 :pos [0 0 0] :rot [0 0 0]}
@@ -462,6 +605,7 @@
                               item (get-in @univ [:items id])]
                           (do
                             (swap! univ ru/dissoc-in [:items id])
+                            (swap! univ ru/dissoc-in [:data :items id])
                             (w/remove-item! (:world @univ) item)))
 
            :cam/add (let [[id params] details
@@ -498,26 +642,41 @@
                           i (get-in @univ [:items id])]
                       (swap! univ assoc-in [:data :cameras id :live] value)
                       (when value (w/set-camera! (:world @univ) i)))
-           :cam/remove (throw (ex-info "Unimplemented action"))
+           :cam/remove (let [[id] details
+                             cam (get-in @univ [:items id])]
+                         (do
+                           (swap! univ ru/dissoc-in [:items id])
+                           (swap! univ ru/dissoc-in [:data :cameras id])
+                           (w/remove-item! (:world @univ) cam)
+                           ))
 
-           :light/add (let [[id params] details
+           :point/add (let [[id params] details
                             n (count (get-in @univ [:data :lights :points]))
                             l (w/create-point-light! params)]
                         (swap! univ assoc-in [:data :lights :points id] params)
                         (w/set-point-light! (:world @univ) n l))
-           :light/remove (throw (ex-info "Unimplemented action"))
+           :point/remove (let [[id] details]
+                           (do
+                             (swap! univ ru/dissoc-in [:data :lights :points id])
+                             ;; TODO : Function to remove the point light in the engine
+                             ))
 
            :spot/add (let [[id params] details
                            n (count (get-in @univ [:data :lights :spots]))
                            l (w/create-spot-light! params)]
                        (swap! univ assoc-in [:data :lights :spots id] params)
                        (w/set-spot-light! (:world @univ) n l))
-           :spot/remove (throw (ex-info "Unimplemented action"))
+           :spot/remove (let [[id] details]
+                          (do
+                            (swap! univ ru/dissoc-in [:data :lights :spots id])
+                            ;; TODO : Function to remove the spot in the engine
+                            ))
 
            :ambient/set (let [[params] details
                               a (w/create-ambient-light! params)]
                           (swap! univ assoc-in [:data :lights :ambient] params)
                           (w/set-ambient-light! (:world @univ) a))
+
            :sun/set (let [[params] details
                           s (w/create-sun-light! params)]
                       (swap! univ assoc-in [:data :lights :sun] params)
@@ -532,3 +691,8 @@
     ;;(println d)
     (display-diff! univ d)))
 
+(defn undisplay-scene!
+  "Remove the current scene visual"
+  [univ]
+  (display-diff! univ (clear (:data @univ)))
+  )

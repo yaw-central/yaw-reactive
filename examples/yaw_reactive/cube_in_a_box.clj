@@ -5,7 +5,8 @@
    [clojure.set :as set]
    [yaw.world :as w]
    [yaw-reactive.reaction :as r]
-   [yaw-reactive.render :as render]))
+   [yaw-reactive.render :as render]
+   [yaw-reactive.scene :as scene]))
 
 (def min-x -2)
 (def max-x 2)
