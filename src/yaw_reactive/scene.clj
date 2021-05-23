@@ -689,10 +689,19 @@
         d (diff (:data @univ) s)]
     ;;(println "DIFF:")
     ;;(println d)
-    (display-diff! univ d)))
+    (display-diff! univ d))
+  )
 
 (defn undisplay-scene!
   "Remove the current scene visual"
   [univ]
   (display-diff! univ (clear (:data @univ)))
+  )
+
+(defn swap-scene!
+  "Replace the current scene by the given one"
+  [univ scene]
+  (let [s (ru/unwrap-or (item-map scene) (:data @univ))
+        d (diffr (:data @univ) s)]
+    (display-diff! univ d))
   )
