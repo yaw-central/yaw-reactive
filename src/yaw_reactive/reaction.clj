@@ -40,9 +40,7 @@
 
 
 (defn reactive-atom [controller init-val]
-  (let [rat (ratom/make-ratom controller reaction-handler init-val)]
-    (add-watch rat ::reaction reaction-handler)
-    rat))
+  (ratom/make-ratom controller reaction-handler init-val))
 
 (defn create-update-ratom [universe]
   (let [world (:world @universe)
