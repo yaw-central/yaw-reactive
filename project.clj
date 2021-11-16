@@ -6,6 +6,10 @@
   :source-paths ["src", "examples"]
   :test-paths ["test" "src/test"]
   :dependencies [[org.clojure/clojure "1.10.1"]
-                 [yaw-engine "0.3.0-SNAPSHOT"]]
+                 [yaw-engine "0.3.0-SNAPSHOT"]
+                 [expound "0.8.9"]]
+  :pom-addition [:properties
+                  ["maven.compiler.source" "14"]
+                  ["maven.compiler.target" "14"]]
 )
 
